@@ -1,116 +1,163 @@
 # HA-Magiline
 
-Projet expérimental visant à piloter et superviser un équipement de piscine **Magiline** depuis **Home Assistant**.
+Intégration locale et expérimentale de **piscines Magiline équipées d'un boîtier iMAGI-X** dans **Home Assistant**.
 
-L’objectif est de comprendre le protocole utilisé par l’équipement et son application mobile, puis de construire une intégration locale, documentée et réutilisable.
+Le projet vise à piloter et superviser la piscine sans dépendance au cloud pour les opérations courantes, en s'appuyant sur l'API HTTP locale découverte sur le boîtier.
 
 > [!WARNING]
-> Ce dépôt est à un stade exploratoire. Il ne contient pas encore une intégration Home Assistant prête pour la production.
+> Le projet est en reverse engineering actif. Les commandes publiées comme « confirmées » ont été testées sur une installation réelle, mais elles peuvent varier selon les versions de boîtier, de firmware ou de configuration. Toute commande doit être testée avec prudence.
 
-## Objectifs
+## État actuel
 
-- identifier les échanges entre l’application Magiline et l’équipement de piscine ;
-- documenter les commandes, états et paramètres disponibles ;
-- permettre le pilotage local de la filtration ;
-- exposer les informations utiles dans Home Assistant ;
-- éviter, autant que possible, une dépendance permanente au cloud constructeur ;
-- conserver une séparation nette entre les essais techniques et une future version stable.
+### Confirmé expérimentalement
 
-## Premières observations
+- API HTTP locale accessible sur le port `11000` ;
+- lecture de l'état global de la piscine ;
+- commande locale du projecteur ;
+- commande locale du mode de filtration ;
+- aucune authentification locale observée sur l'installation testée.
 
-Les valeurs suivantes ont été observées expérimentalement pour le pilotage de la filtration :
+### Déduit de l'APK
 
-| Code | Mode observé |
+L'application Android est basée sur **React Native / Expo** et utilise **Hermes**. La logique métier se trouve principalement dans `assets/index.android.bundle`.
+
+Les éléments suivants ont été identifiés dans le bundle :
+
+- `SpotlightService` ;
+- `FiltrationService` ;
+- `WinteringService` ;
+- `sendOrders` ;
+- `handleLocalConnection` ;
+- `sendPoolConfiguration`.
+
+L'analyse de ces services a permis de reconstruire les premières commandes locales fonctionnelles.
+
+## API locale connue
+
+Base URL :
+
+```text
+http://<IP_DU_BOITIER>:11000/api/v1/pool/local
+```
+
+| Fonction | Méthode et endpoint | Statut |
+|---|---|---|
+| Informations générales | `GET /api/v1/pool/info` | Confirmé |
+| État local complet | `GET /api/v1/pool/local` | Confirmé |
+| Projecteur | `POST /api/v1/pool/local/spotlight` | Confirmé expérimentalement |
+| Filtration | `POST /api/v1/pool/local/configure-filtration` | Confirmé expérimentalement |
+
+### Projecteur
+
+Allumage :
+
+```json
+{
+  "mode": {
+    "wanted": 2
+  }
+}
+```
+
+Extinction :
+
+```json
+{
+  "mode": {
+    "wanted": 1
+  }
+}
+```
+
+### Filtration
+
+```json
+{
+  "mode": {
+    "wanted": 0
+  }
+}
+```
+
+| `wanted` | Comportement observé |
 |---:|---|
 | `0` | Mode automatique |
-| `1` | Marche continue |
+| `1` | Marche forcée permanente |
 | `2` | Arrêt |
 
-Le mode automatique semble pouvoir prendre plusieurs formes selon la configuration de l’installation. Sur l’équipement étudié, le profil utilisé est un mode automatique personnalisé / expert.
+Sur l'installation étudiée, `wanted = 0` correspond au mode automatique personnalisé / expert configuré dans le boîtier.
 
-Ces correspondances devront être confirmées et complétées au fur et à mesure des tests.
+## Méthodologie de reverse engineering
 
-## Périmètre envisagé
+1. Identifier le service fonctionnel dans le bundle Hermes de l'APK.
+2. Reconstruire l'endpoint HTTP local et son payload JSON.
+3. Tester la commande avec un script PowerShell indépendant.
+4. Vérifier physiquement le comportement du boîtier.
+5. Documenter la preuve, le niveau de confiance et les éventuelles limites.
+6. Intégrer ensuite la fonction dans Home Assistant.
 
-### Commandes
-
-- passage en mode automatique ;
-- marche forcée de la filtration ;
-- arrêt de la filtration ;
-- récupération et modification éventuelle des paramètres de programmation.
-
-### Supervision
-
-- état courant de la filtration ;
-- mode actif ;
-- horaires ou règles de fonctionnement ;
-- disponibilité de l’équipement ;
-- autres mesures accessibles selon le matériel installé.
+Cette méthode a déjà permis de valider le projecteur et la filtration.
 
 ## Architecture cible
 
-L’architecture définitive reste à confirmer, mais le projet pourra comprendre :
-
 ```text
 Home Assistant
-      │
-      ├── Intégration personnalisée HA
-      │
-      ├── Client Python du protocole Magiline
-      │
-      └── Équipement Magiline sur le réseau local
+  └── custom_components/magiline
+        ├── config_flow.py
+        ├── api.py
+        ├── coordinator.py
+        ├── sensor.py
+        ├── switch.py
+        ├── light.py
+        └── diagnostics.py
+              │
+              └── API HTTP locale iMAGI-X :11000
 ```
 
-Une première phase pourra utiliser des scripts ou outils de test indépendants avant leur intégration dans Home Assistant.
+Le composant utilisera un `DataUpdateCoordinator` et interrogera périodiquement `GET /api/v1/pool/local`, avec un intervalle initial envisagé de 15 à 30 secondes.
 
-## Structure prévisionnelle du dépôt
+## Structure du dépôt
 
 ```text
 HA-Magiline/
 ├── README.md
-├── docs/                       # Notes de recherche et documentation du protocole
-├── experiments/                # Scripts et essais non destinés à la production
+├── docs/
+│   ├── architecture.md
+│   ├── local-api.md
+│   ├── reverse-engineering.md
+│   ├── apk-analysis.md
+│   ├── design-decisions.md
+│   ├── developer-guide.md
+│   └── roadmap.md
+├── experiments/
+│   └── powershell/
 ├── custom_components/
-│   └── magiline/               # Future intégration Home Assistant
-└── tests/                      # Tests automatisés
+│   └── magiline/
+└── tests/
 ```
 
-## Méthode de travail
+## Niveaux de confiance
 
-1. Capturer ou observer les échanges réseau autorisés entre l’application et l’équipement.
-2. Identifier les points d’accès, formats de messages et mécanismes d’authentification.
-3. Reproduire les lectures sans modifier l’état de l’installation.
-4. Tester ensuite les commandes dans un environnement contrôlé.
-5. Documenter chaque découverte dans `docs/`.
-6. Encapsuler le protocole dans une bibliothèque testable.
-7. Créer l’intégration Home Assistant.
+- **Confirmé expérimentalement** : commande exécutée et effet vérifié sur le matériel.
+- **Déduit de l'APK** : information retrouvée dans le bundle, mais pas encore validée sur le matériel.
+- **Hypothèse** : piste technique restant à démontrer.
+- **À vérifier** : comportement observé partiellement ou dépendant de la configuration.
 
-## Sécurité
+## Roadmap
 
-Le pilotage d’une filtration de piscine peut avoir des conséquences matérielles et sanitaires.
+- **v0.1** : lecture d'état, projecteur, filtration ;
+- **v0.2** : chauffage, volet et accessoires ;
+- **v0.3** : configuration, programmes et hivernage ;
+- **v1.0** : intégration stabilisée, documentation complète et publication HACS.
 
-- Ne jamais publier d’identifiants, jetons, clés API ou adresses privées.
-- Tester les commandes avec prudence.
-- Prévoir un retour à un fonctionnement manuel ou automatique sûr.
-- Ne pas contourner les sécurités intégrées au matériel.
-- Vérifier le comportement réel de l’équipement après chaque commande.
+## Périmètre éthique et sécurité
 
-## Statut
+Le projet n'a pas pour objectif de casser la sécurité du produit, de contourner une authentification, de modifier le firmware ou d'intercepter des communications cloud privées. Il documente et utilise uniquement les interfaces locales accessibles par le propriétaire de l'équipement sur son propre réseau.
 
-🚧 **Exploration initiale**
+Le pilotage d'une piscine peut avoir des conséquences matérielles et sanitaires. Conservez toujours un moyen de retour au fonctionnement manuel ou automatique et ne publiez jamais d'identifiants, jetons, adresses privées ou captures non anonymisées.
 
-Le dépôt sert pour le moment à capitaliser les recherches, les essais et la documentation avant le développement d’une intégration stable.
+## Licence et affiliation
 
-## Contribution
-
-Les retours d’expérience sur les équipements Magiline, les variantes de contrôleurs et les protocoles observés sont bienvenus.
-
-Lors du partage d’informations, veillez à supprimer toutes les données sensibles ou propres à votre installation.
-
-## Licence
-
-Aucune licence n’est encore définie. Tant qu’un fichier `LICENSE` n’est pas ajouté, le contenu du dépôt reste protégé par le droit d’auteur par défaut.
-
-## Avertissement
+Aucune licence n'est encore définie. Tant qu'un fichier `LICENSE` n'est pas ajouté, le contenu reste protégé par le droit d'auteur par défaut.
 
 Ce projet est indépendant et non affilié à Magiline. Les noms et marques cités appartiennent à leurs propriétaires respectifs.
