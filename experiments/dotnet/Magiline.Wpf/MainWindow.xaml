@@ -1,0 +1,70 @@
+<Window x:Class="Magiline.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HA-Magiline Explorer" Height="760" Width="1050" MinHeight="650" MinWidth="900">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Padding="14" BorderBrush="#DDD" BorderThickness="1" CornerRadius="6">
+            <StackPanel>
+                <TextBlock Text="Connexion au boîtier iMAGI-X" FontSize="18" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock Text="Adresse :" VerticalAlignment="Center" />
+                    <TextBox x:Name="HostTextBox" Width="190" Margin="8,0,16,0" Text="192.168.1.100" />
+                    <TextBlock Text="Port :" VerticalAlignment="Center" />
+                    <TextBox x:Name="PortTextBox" Width="80" Margin="8,0,16,0" Text="11000" />
+                    <Button Content="Tester / Actualiser" Padding="16,7" Click="RefreshButton_Click" />
+                    <TextBlock x:Name="ConnectionStatusText" Margin="16,0,0,0" VerticalAlignment="Center" Text="Non testé" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Header="Projecteur" Padding="12" Margin="0,0,8,0">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="ON" Width="120" Height="48" Margin="0,0,10,0" ToolTip="POST spotlight avec wanted = 2 — confirmé expérimentalement" Click="SpotlightOn_Click" />
+                    <Button Content="OFF" Width="120" Height="48" ToolTip="POST spotlight avec wanted = 1 — confirmé expérimentalement" Click="SpotlightOff_Click" />
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Grid.Column="1" Header="Filtration — valeurs wanted" Padding="12" Margin="8,0,0,0">
+                <UniformGrid Columns="3" Rows="2">
+                    <Button Margin="5" Padding="8" Tag="0" Click="FiltrationButton_Click" ToolTip="wanted = 0 — mode Auto, confirmé">
+                        <StackPanel><TextBlock Text="0" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/><TextBlock Text="Auto" HorizontalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Margin="5" Padding="8" Tag="1" Click="FiltrationButton_Click" ToolTip="wanted = 1 — marche continue, confirmé">
+                        <StackPanel><TextBlock Text="1" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/><TextBlock Text="Marche continue" HorizontalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Margin="5" Padding="8" Tag="2" Click="FiltrationButton_Click" ToolTip="wanted = 2 — arrêt, confirmé">
+                        <StackPanel><TextBlock Text="2" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/><TextBlock Text="Arrêt" HorizontalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Margin="5" Padding="8" Tag="3" Click="FiltrationButton_Click" ToolTip="wanted = 3 — mode observé, interprétation à confirmer">
+                        <StackPanel><TextBlock Text="3" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/><TextBlock Text="Auto global ?" HorizontalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Margin="5" Padding="8" Tag="4" Click="FiltrationButton_Click" ToolTip="wanted = 4 — fonction inconnue, expérimental">
+                        <StackPanel><TextBlock Text="4" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/><TextBlock Text="Inconnu" HorizontalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Margin="5" Padding="8" Tag="5" Click="FiltrationButton_Click" ToolTip="wanted = 5 — fonction inconnue, expérimental">
+                        <StackPanel><TextBlock Text="5" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/><TextBlock Text="Inconnu" HorizontalAlignment="Center"/></StackPanel>
+                    </Button>
+                </UniformGrid>
+            </GroupBox>
+        </Grid>
+
+        <TextBlock Grid.Row="2" x:Name="LastActionText" Margin="0,14,0,8" Text="Aucune action envoyée." />
+
+        <GroupBox Grid.Row="3" Header="État brut retourné par /api/v1/pool/local" Padding="10">
+            <TextBox x:Name="JsonTextBox" FontFamily="Consolas" FontSize="13" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+        </GroupBox>
+    </Grid>
+</Window>
